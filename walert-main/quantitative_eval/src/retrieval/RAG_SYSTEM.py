@@ -1,21 +1,30 @@
-import sounddevice as sd
-from scipy.io.wavfile import write
-import threading
-from pydub import AudioSegment
-import numpy as np
-import whisper
+# import sounddevice as sd
+# from scipy.io.wavfile import write
+# import threading
+# from pydub import AudioSegment
+# import numpy as np
+# import whisper
+# import os
+# from pyserini.search import FaissSearcher
+# import pandas as pd
+# from transformers import AutoTokenizer, AutoModelForCausalLM
+# import transformers
+# import torch
+# from gtts import gTTS
+# from pydub import AudioSegment
+# import pygame
+# import time
+# import os
+# import logging
+
 import os
-from pyserini.search import FaissSearcher
+import logging
 import pandas as pd
+# from pyserini.search import FaissSearcher
+from pyserini.search.faiss import FaissSearcher
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import transformers
 import torch
-from gtts import gTTS
-from pydub import AudioSegment
-import pygame
-import time
-import os
-import logging
 
 logging.basicConfig(filename='voice_assistant.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -24,26 +33,26 @@ logging.basicConfig(filename='voice_assistant.log', level=logging.INFO, format='
 # [Dense Retrieval] -> {Top 3 Passages} -> [Textual Response Generation using Falcon] -> {System Response in Text Format} -> [TTS] -> {Final Voice Response in audio format} -> [Play Voice Response using Pygame]
 
 
-def play_voice_response(text):
-    # Language in which you want to convert
+# def play_voice_response(text):
+#     # Language in which you want to convert
 
-    language = 'en'
-    # Passing the text and language to the engine
-    tts = gTTS(text=text, lang=language, slow=False)
+#     language = 'en'
+#     # Passing the text and language to the engine
+#     tts = gTTS(text=text, lang=language, slow=False)
 
-    # Saving the converted audio in a file named 'output.mp3'
-    tts.save("response.mp3")
-    sound = AudioSegment.from_mp3("response.mp3")
-    sound.export("response.wav", format="wav")
+#     # Saving the converted audio in a file named 'output.mp3'
+#     tts.save("response.mp3")
+#     sound = AudioSegment.from_mp3("response.mp3")
+#     sound.export("response.wav", format="wav")
 
-    pygame.init()
-    pygame.mixer.init()
-    pygame.mixer.music.load("response.wav")
-    pygame.mixer.music.play()
-    time.sleep(5)
+#     pygame.init()
+#     pygame.mixer.init()
+#     pygame.mixer.music.load("response.wav")
+#     pygame.mixer.music.play()
+#     time.sleep(5)
 
-    os.remove("response.wav")
-    os.remove("response.mp3")
+#     os.remove("response.wav")
+#     os.remove("response.mp3")
 
 def get_answer(text):
     # Find the index of 'Answer:'
@@ -61,7 +70,10 @@ def get_answer(text):
 
 
 def load_model(model_id):
-    model_id = "tiiuae/falcon-7b-instruct"
+    # model_id = "tiiuae/falcon-7b-instruct"
+    # model_id = "tiiuae/falcon-3b-instruct" #not public?
+    # model_id = "tiiuae/falcon-7b"  #~4.gb
+    model_id = "bigscience/bloom-560m"
 
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True)
@@ -132,62 +144,83 @@ def generate_answer(question, context, pipeline, tokenizer):
 
 
 # Create a callback function to stop the recording
-def callback(indata, frames, time, status):
-    print("...")
-    audio_data.append(indata.copy())
-    if EVENT.is_set():
-        print("Recording finished.")
-        raise sd.CallbackStop
+# def callback(indata, frames, time, status):
+#     print("...")
+#     audio_data.append(indata.copy())
+#     if EVENT.is_set():
+#         print("Recording finished.")
+#         raise sd.CallbackStop
 
-# Create an event for stopping the recording
-EVENT = threading.Event()
+# # Create an event for stopping the recording
+# EVENT = threading.Event()
+
+# if __name__ == '__main__':
+#     logging.info("Starting the voice assistant...")
+#     # ************ Query Recording ************
+
+#     samplerate = 44100  # Standard for most microphones
+#     channels = 2  # Stereo
+
+#     audio_data = []
+
+#     # Start the recording in a new thread
+#     stream = sd.InputStream(callback=callback, channels=channels, samplerate=samplerate)
+#     with stream:
+#         # Wait for the user to press Enter
+#         input()
+#         EVENT.set()
+
+#     # Concatenate the audio data and save it to a temporary WAV file
+#     audio = np.concatenate(audio_data)
+#     temp_filename = 'user_voice_query.wav'
+#     write(temp_filename, samplerate, audio)
+
+#     logging.info("User's voice query successfully recorded and store as user_voice_query.wav")
+
+#     # ************ ASR ************
+#     model = whisper.load_model("base")
+#     result = model.transcribe(temp_filename, fp16=False)
+#     question = result["text"]
+
+#     logging.info(f"User's voice query trasncribed: {question}")
+
+#     logging.info(f"Initiating retrieval . . .")
+#     # ************ Retrieval ************
+#     RAG_context_passages = get_context_passages(question)
+
+#     logging.info(f"Retrieval Completed")
+#     # ************ Response Generation in Text ************
+#     logging.info(f"Initiating response generation using Falcon")
+#     llm_result = generate_answer(question, RAG_context_passages, PIPELINE, TOKENIZER)
+
+#     response_text = get_answer(llm_result[0]['generated_text'])
+
+#     logging.info(f"Response generation completed (text format): {response_text}")
+#     # ************ Voice Response ************
+#     logging.info(f"Initiating voice response (audio format)")
+#     play_voice_response(response_text)
+
+#     logging.info(f"Conversation turn completed.")
+
 
 if __name__ == '__main__':
-    logging.info("Starting the voice assistant...")
-    # ************ Query Recording ************
+    logging.info("Starting RAG text assistant...")
 
-    samplerate = 44100  # Standard for most microphones
-    channels = 2  # Stereo
+    # ************ Text Query ************
+    question = input("Enter your question: ")
+    logging.info(f"User question: {question}")
 
-    audio_data = []
-
-    # Start the recording in a new thread
-    stream = sd.InputStream(callback=callback, channels=channels, samplerate=samplerate)
-    with stream:
-        # Wait for the user to press Enter
-        input()
-        EVENT.set()
-
-    # Concatenate the audio data and save it to a temporary WAV file
-    audio = np.concatenate(audio_data)
-    temp_filename = 'user_voice_query.wav'
-    write(temp_filename, samplerate, audio)
-
-    logging.info("User's voice query successfully recorded and store as user_voice_query.wav")
-
-    # ************ ASR ************
-    model = whisper.load_model("base")
-    result = model.transcribe(temp_filename, fp16=False)
-    question = result["text"]
-
-    logging.info(f"User's voice query trasncribed: {question}")
-
-    logging.info(f"Initiating retrieval . . .")
     # ************ Retrieval ************
+    logging.info(f"Initiating retrieval . . .")
     RAG_context_passages = get_context_passages(question)
-
     logging.info(f"Retrieval Completed")
-    # ************ Response Generation in Text ************
-    logging.info(f"Initiating response generation using Falcon")
+
+    # ************ Response Generation ************
+    logging.info(f"Generating answer using Falcon...")
     llm_result = generate_answer(question, RAG_context_passages, PIPELINE, TOKENIZER)
-
     response_text = get_answer(llm_result[0]['generated_text'])
+    logging.info(f"Response: {response_text}")
 
-    logging.info(f"Response generation completed (text format): {response_text}")
-    # ************ Voice Response ************
-    logging.info(f"Initiating voice response (audio format)")
-    play_voice_response(response_text)
-
-    logging.info(f"Conversation turn completed.")
-
-
+    # ************ Print Response ************
+    print("\nAnswer:", response_text)
+    logging.info("Conversation turn completed.")
